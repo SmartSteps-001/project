@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Call - Waiting Room</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #202124;
+            color: white;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+
+        .video-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #202124;
+            position: relative;
+        }
+
+        .video-container {
+            width: 640px;
+            height: 480px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+        }
+
+        #videoPreview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .video-overlay {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .control-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        .control-btn.muted {
+            background: #ea4335;
+        }
+
+        .control-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .user-name {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .settings-panel {
+            width: 400px;
+            background: #2d2e30;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            border-left: 1px solid #3c4043;
+        }
+
+        .panel-title {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #e8eaed;
+        }
+
+        .form-input {
+            padding: 12px 16px;
+            border: 1px solid #5f6368;
+            border-radius: 8px;
+            background: #3c4043;
+            color: white;
+            font-size: 16px;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #1a73e8;
+        }
+
+        .device-select {
+            padding: 12px 16px;
+            border: 1px solid #5f6368;
+            border-radius: 8px;
+            background: #3c4043;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+
+        .device-select:focus {
+            outline: none;
+            border-color: #1a73e8;
+        }
+
+        .test-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .test-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #3c4043;
+        }
+
+        .test-row:last-child {
+            border-bottom: none;
+        }
+
+        .test-btn {
+            padding: 8px 16px;
+            border: 1px solid #1a73e8;
+            border-radius: 6px;
+            background: transparent;
+            color: #1a73e8;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .test-btn:hover {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .test-btn.active {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .volume-indicator {
+            width: 100px;
+            height: 4px;
+            background: #3c4043;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .volume-bar {
+            height: 100%;
+            background: #34a853;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        .join-section {
+            margin-top: auto;
+            padding-top: 24px;
+            border-top: 1px solid #3c4043;
+        }
+
+        .join-btn {
+            width: 100%;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 24px;
+            background: #1a73e8;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .join-btn:hover {
+            background: #1557b0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+        }
+
+        .join-btn:disabled {
+            background: #5f6368;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #34a853;
+            margin-left: 8px;
+        }
+
+        .status-indicator.error {
+            background: #ea4335;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .recording-indicator {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="video-section">
+            <div class="video-container">
+                <video id="videoPreview" autoplay muted playsinline></video>
+                <div class="user-name" id="displayName">You</div>
+                <div class="video-overlay">
+                    <button class="control-btn" id="micBtn" title="Toggle Microphone">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2c1.1 0 2 .9 2 2v6c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H6c0 3.53 2.61 6.43 6 6.92V21h4v-2.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="cameraBtn" title="Toggle Camera">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="settingsBtn" title="Settings">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.82,11.69,4.82,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-panel">
+            <h2 class="panel-title">Ready to join?</h2>
+            
+            <div class="form-group">
+                <label class="form-label" for="userName">Your name</label>
+                <input type="text" id="userName" class="form-input" placeholder="Enter your name" value="Faith Abayomi">
+            </div>
+
+            <div class="test-section">
+                <div class="test-row">
+                    <div>
+                        <div class="form-label">Camera</div>
+                        <select class="device-select" id="cameraSelect">
+                            <option value="">Loading cameras...</option>
+                        </select>
+                    </div>
+                    <div class="status-indicator" id="cameraStatus"></div>
+                </div>
+
+                <div class="test-row">
+                    <div>
+                        <div class="form-label">Microphone</div>
+                        <select class="device-select" id="micSelect">
+                            <option value="">Loading microphones...</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="volume-indicator">
+                            <div class="volume-bar" id="micVolumeBar"></div>
+                        </div>
+                        <div class="status-indicator" id="micStatus"></div>
+                    </div>
+                </div>
+
+                <div class="test-row">
+                    <div>
+                        <div class="form-label">Speakers</div>
+                        <select class="device-select" id="speakerSelect">
+                            <option value="">Loading speakers...</option>
+                        </select>
+                    </div>
+                    <button class="test-btn" id="speakerTestBtn">Test</button>
+                </div>
+            </div>
+
+            <div class="join-section">
+                <button class="join-btn" id="joinBtn">Ask to join</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class VideoCallWaitingRoom {
+            constructor() {
+                this.stream = null;
+                this.audioContext = null;
+                this.analyser = null;
+                this.micEnabled = true;
+                this.cameraEnabled = true;
+                this.devices = {
+                    cameras: [],
+                    microphones: [],
+                    speakers: []
+                };
+                
+                this.init();
+            }
+
+            async init() {
+                await this.getDevices();
+                await this.startCamera();
+                this.setupEventListeners();
+                this.startMicrophoneMonitoring();
+            }
+
+            async getDevices() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    
+                    this.devices.cameras = devices.filter(device => device.kind === 'videoinput');
+                    this.devices.microphones = devices.filter(device => device.kind === 'audioinput');
+                    this.devices.speakers = devices.filter(device => device.kind === 'audiooutput');
+                    
+                    this.populateDeviceSelects();
+                } catch (error) {
+                    console.error('Error getting devices:', error);
+                }
+            }
+
+            populateDeviceSelects() {
+                const cameraSelect = document.getElementById('cameraSelect');
+                const micSelect = document.getElementById('micSelect');
+                const speakerSelect = document.getElementById('speakerSelect');
+
+                // Populate cameras
+                cameraSelect.innerHTML = '';
+                this.devices.cameras.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                // Populate microphones
+                micSelect.innerHTML = '';
+                this.devices.microphones.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `Microphone ${index + 1}`;
+                    micSelect.appendChild(option);
+                });
+
+                // Populate speakers
+                speakerSelect.innerHTML = '';
+                this.devices.speakers.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `Speaker ${index + 1}`;
+                    speakerSelect.appendChild(option);
+                });
+
+                if (this.devices.speakers.length === 0) {
+                    const option = document.createElement('option');
+                    option.textContent = 'Default Speaker';
+                    speakerSelect.appendChild(option);
+                }
+            }
+
+            async startCamera() {
+                try {
+                    const constraints = {
+                        video: { 
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: true
+                    };
+
+                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    const videoPreview = document.getElementById('videoPreview');
+                    videoPreview.srcObject = this.stream;
+                    
+                    document.getElementById('cameraStatus').classList.remove('error');
+                    document.getElementById('micStatus').classList.remove('error');
+                    
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    document.getElementById('cameraStatus').classList.add('error');
+                    document.getElementById('micStatus').classList.add('error');
+                }
+            }
+
+            async switchCamera(deviceId) {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                }
+
+                try {
+                    const constraints = {
+                        video: { 
+                            deviceId: deviceId ? { exact: deviceId } : undefined,
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: true
+                    };
+
+                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    const videoPreview = document.getElementById('videoPreview');
+                    videoPreview.srcObject = this.stream;
+                    
+                    document.getElementById('cameraStatus').classList.remove('error');
+                } catch (error) {
+                    console.error('Error switching camera:', error);
+                    document.getElementById('cameraStatus').classList.add('error');
+                }
+            }
+
+            startMicrophoneMonitoring() {
+                if (!this.stream) return;
+
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.analyser = this.audioContext.createAnalyser();
+                    
+                    const audioTrack = this.stream.getAudioTracks()[0];
+                    if (audioTrack) {
+                        const source = this.audioContext.createMediaStreamSource(this.stream);
+                        source.connect(this.analyser);
+                        
+                        this.analyser.fftSize = 256;
+                        const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                        
+                        const updateVolume = () => {
+                            this.analyser.getByteFrequencyData(dataArray);
+                            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                            const volumePercent = (average / 255) * 100;
+                            
+                            document.getElementById('micVolumeBar').style.width = `${volumePercent}%`;
+                            requestAnimationFrame(updateVolume);
+                        };
+                        
+                        updateVolume();
+                    }
+                } catch (error) {
+                    console.error('Error setting up microphone monitoring:', error);
+                }
+            }
+
+            toggleMicrophone() {
+                if (this.stream) {
+                    const audioTracks = this.stream.getAudioTracks();
+                    audioTracks.forEach(track => {
+                        track.enabled = !track.enabled;
+                    });
+                    this.micEnabled = !this.micEnabled;
+                    
+                    const micBtn = document.getElementById('micBtn');
+                    micBtn.classList.toggle('muted', !this.micEnabled);
+                    micBtn.innerHTML = this.micEnabled ? 
+                        '<svg viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2v6c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H6c0 3.53 2.61 6.43 6 6.92V21h4v-2.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>' :
+                        '<svg viewBox="0 0 24 24"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V4c0-1.1-.9-2-2-2S11 2.9 11 4v.18l3.98 3.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.1.9 2 2 2 .11 0 .22-.01.33-.03l1.17 1.17c-.8.21-1.62.36-2.5.36-3.11 0-5.7-2.51-5.7-5.7H3c0 3.41 2.72 6.23 6 6.72V21h4v-6.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>';
+                }
+            }
+
+            toggleCamera() {
+                if (this.stream) {
+                    const videoTracks = this.stream.getVideoTracks();
+                    videoTracks.forEach(track => {
+                        track.enabled = !track.enabled;
+                    });
+                    this.cameraEnabled = !this.cameraEnabled;
+                    
+                    const cameraBtn = document.getElementById('cameraBtn');
+                    cameraBtn.classList.toggle('muted', !this.cameraEnabled);
+                    cameraBtn.innerHTML = this.cameraEnabled ? 
+                        '<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>' :
+                        '<svg viewBox="0 0 24 24"><path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z"/></svg>';
+                    
+                    const videoPreview = document.getElementById('videoPreview');
+                    videoPreview.style.display = this.cameraEnabled ? 'block' : 'none';
+                }
+            }
+
+            testSpeakers() {
+                const testBtn = document.getElementById('speakerTestBtn');
+                testBtn.classList.add('active');
+                testBtn.textContent = 'Playing...';
+                
+                // Create a test tone
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 1);
+                
+                setTimeout(() => {
+                    testBtn.classList.remove('active');
+                    testBtn.textContent = 'Test';
+                }, 1000);
+            }
+
+            updateDisplayName() {
+                const userName = document.getElementById('userName').value;
+                document.getElementById('displayName').textContent = userName || 'You';
+            }
+
+            joinMeeting() {
+                const userName = document.getElementById('userName').value;
+                if (!userName.trim()) {
+                    alert('Please enter your name before joining');
+                    return;
+                }
+                
+                const joinBtn = document.getElementById('joinBtn');
+                joinBtn.disabled = true;
+                joinBtn.textContent = 'Joining...';
+                
+                // Simulate joining process
+                setTimeout(() => {
+                    alert(`Joining meeting as: ${userName}`);
+                    joinBtn.disabled = false;
+                    joinBtn.textContent = 'Ask to join';
+                }, 2000);
+            }
+
+            setupEventListeners() {
+                document.getElementById('micBtn').addEventListener('click', () => this.toggleMicrophone());
+                document.getElementById('cameraBtn').addEventListener('click', () => this.toggleCamera());
+                document.getElementById('speakerTestBtn').addEventListener('click', () => this.testSpeakers());
+                document.getElementById('userName').addEventListener('input', () => this.updateDisplayName());
+                document.getElementById('joinBtn').addEventListener('click', () => this.joinMeeting());
+                
+                document.getElementById('cameraSelect').addEventListener('change', (e) => {
+                    this.switchCamera(e.target.value);
+                });
+            }
+        }
+
+        // Initialize the waiting room when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new VideoCallWaitingRoom();
+        });
+    </script>
+</body>
+</html>

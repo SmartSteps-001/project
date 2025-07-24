@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Meeting</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            --hand-raising-enabled: 1;
+        }
+
+        .participant-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            min-width: 400px;
+        }
+
+        .participant-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .participant-header h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .participant-badge {
+            background: linear-gradient(45deg, #00b894, #00a085);
+            color: white;
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .meeting-info {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-title {
+            color: #333;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .hand-raise-section {
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .hand-raise-enabled {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+
+        .hand-raise-disabled {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+
+        .hand-raise-button {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .hand-raise-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(40, 167, 69, 0.3);
+        }
+
+        .hand-raise-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .hand-raise-button:disabled:hover {
+            transform: none;
+        }
+
+        .status-indicator {
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .feature-status {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-description {
+            font-size: 0.95rem;
+            opacity: 0.8;
+        }
+
+        .hand-emoji {
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+   
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        (function() {
+            // Create secure functions that cannot be accessed from console
+            const secureNamespace = {};
+            
+            // Protect functions from console access
+            const createSecureFunction = (name, fn) => {
+                Object.defineProperty(window, name, {
+                    value: function() {
+                        throw new Error(`Access denied: ${name} cannot be called manually`);
+                    },
+                    writable: false,
+                    configurable: false
+                });
+                
+                secureNamespace[name] = fn;
+                return secureNamespace[name];
+            };
+
+            function enableHandRaising() {
+               alert('Hand raising enabled. God bless you!');
+            }
+            function disableHandRaising() {
+             alert('Hand raising disabled. God bless you!');
+            }
+            // Create protected functions
+            const protectedEnableHandRaising = createSecureFunction('enableHandRaising', function() {
+            
+                enableHandRaising();
+            });
+
+            const protectedDisableHandRaising = createSecureFunction('disableHandRaising', function() {
+                disableHandRaising();
+            });
+
+            // Socket.IO connection
+            const socket = io();
+            const connectionStatus = document.getElementById('connectionStatus');
+
+            // Identify as participant
+            socket.emit('identify-as-participant');
+
+            socket.on('connect', () => {
+                connectionStatus.textContent = 'Connected to meeting';
+                connectionStatus.className = 'status-indicator status-connected';
+            });
+
+            socket.on('disconnect', () => {
+                connectionStatus.textContent = 'Disconnected from meeting';
+                connectionStatus.className = 'status-indicator status-disconnected';
+            });
+
+            socket.on('meeting-state', (state) => {
+                if (state.handRaisingEnabled) {
+                    protectedEnableHandRaising();
+                } else {
+                    protectedDisableHandRaising();
+                }
+            });
+
+            socket.on('hand-raising-toggle', (enabled) => {
+                if (enabled) {
+                    protectedEnableHandRaising();
+                } else {
+                    protectedDisableHandRaising();
+                }
+            });
+
+            // Hand raise button functionality
+            document.getElementById('handRaiseButton').addEventListener('click', () => {
+                // Add hand raise logic here
+                alert('Hand raised! 🙋‍♂️');
+            });
+
+            // Prevent function access through various methods
+            Object.freeze(window.enableHandRaising);
+            Object.freeze(window.disableHandRaising);
+            
+            // Block eval and Function constructor access to protected functions
+            const originalEval = window.eval;
+            window.eval = function(code) {
+                if (code.includes('enableHandRaising') || code.includes('disableHandRaising')) {
+                    throw new Error('Access denied: Protected functions cannot be accessed');
+                }
+                return originalEval(code);
+            };
+
+            // Additional protection against Function constructor
+            const originalFunction = window.Function;
+            window.Function = function() {
+                const code = arguments[arguments.length - 1];
+                if (code && (code.includes('enableHandRaising') || code.includes('disableHandRaising'))) {
+                    throw new Error('Access denied: Protected functions cannot be accessed');
+                }
+                return originalFunction.apply(this, arguments);
+            };
+        })();
+    </script>
+</body>
+</html>

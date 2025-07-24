@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Host Control</title>
+    
+</head>
+<body>
+   
+            <div class="setting-item">
+                <span>Allow hand raising</span>
+                <label class="toggle">
+                    <input type="checkbox" id="handRaisingToggle" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+      
+
+
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        (function() {
+            // Create secure functions that cannot be accessed from console
+            const secureNamespace = {};
+            
+            // Protect functions from console access
+            const createSecureFunction = (name, fn) => {
+                Object.defineProperty(window, name, {
+                    value: function() {
+                        throw new Error(`Access denied: ${name} cannot be called manually`);
+                    },
+                    writable: false,
+                    configurable: false
+                });
+                
+                secureNamespace[name] = fn;
+                return secureNamespace[name];
+            };
+
+          // Create protected functions
+            const protectedEnableHandRaising = createSecureFunction('enableHandRaising', function() {
+            
+                enableHandRaising();
+            });
+
+            const protectedDisableHandRaising = createSecureFunction('disableHandRaising', function() {
+                disableHandRaising();
+            });
+            // Socket.IO connection
+            const socket = io();
+            const toggle = document.getElementById('handRaisingToggle');
+            const connectionStatus = document.getElementById('connectionStatus');
+
+            // Identify as host
+            socket.emit('identify-as-host');
+
+            socket.on('connect', () => {
+                connectionStatus.textContent = 'Connected to server';
+                connectionStatus.className = 'status-indicator status-connected';
+            });
+
+            socket.on('disconnect', () => {
+                connectionStatus.textContent = 'Disconnected from server';
+                connectionStatus.className = 'status-indicator status-disconnected';
+            });
+
+            socket.on('meeting-state', (state) => {
+                toggle.checked = state.handRaisingEnabled;
+                
+                if (state.handRaisingEnabled) {
+                    protectedEnableHandRaising();
+                } else {
+                    protectedDisableHandRaising();
+                }
+            });
+
+            // Handle toggle change
+            toggle.addEventListener('change', (e) => {
+                const enabled = e.target.checked;
+                socket.emit('toggle-hand-raising', enabled);
+                
+                if (enabled) {
+                    protectedEnableHandRaising();
+                } else {
+                    protectedDisableHandRaising();
+                }
+            });
+
+            // Prevent function access through various methods
+            Object.freeze(window.enableHandRaising);
+            Object.freeze(window.disableHandRaising);
+            
+            // Block eval and Function constructor access to protected functions
+            const originalEval = window.eval;
+            window.eval = function(code) {
+                if (code.includes('enableHandRaising') || code.includes('disableHandRaising')) {
+                    throw new Error('Access denied: Protected functions cannot be accessed');
+                }
+                return originalEval(code);
+            };
+        })();
+    </script>
+</body>
+</html>

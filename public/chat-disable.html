@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Disable/Enable Functions with Beautiful Popup</title>
+    <script src="js/chat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .demo-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .demo-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 30px;
+        }
+
+        .chat-button {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+            box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
+        }
+
+        .chat-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66, 153, 225, 0.4);
+        }
+
+        .chat-button:disabled {
+            background: #e2e8f0;
+            color: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .control-buttons {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .disable-btn {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+            box-shadow: 0 4px 15px rgba(245, 101, 101, 0.3);
+        }
+
+        .enable-btn {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+        }
+
+        .status-indicator {
+            margin: 20px 0;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-enabled {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-disabled {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        /* Popup Styles */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .popup-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .popup-content {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 24px;
+            padding: 48px 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .popup-overlay.active .popup-content {
+            transform: scale(1) translateY(0);
+        }
+
+        .popup-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(107, 114, 128, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #6b7280;
+        }
+
+        .popup-close:hover {
+            background: rgba(107, 114, 128, 0.2);
+        }
+
+        .popup-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px auto;
+            position: relative;
+        }
+
+        .popup-icon::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            opacity: 0.1;
+            animation: pulse 2s infinite;
+        }
+
+        .popup-icon svg {
+            width: 36px;
+            height: 36px;
+            color: #dc2626;
+            z-index: 1;
+        }
+
+        .popup-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 16px 0;
+            letter-spacing: -0.025em;
+        }
+
+        .popup-message {
+            font-size: 16px;
+            color: #6b7280;
+            line-height: 1.6;
+            margin: 0 0 32px 0;
+        }
+
+        .popup-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .popup-dot {
+            width: 8px;
+            height: 8px;
+            background: #dc2626;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .popup-dot:nth-child(2) {
+            animation-delay: 0.16s;
+        }
+
+        .popup-dot:nth-child(3) {
+            animation-delay: 0.32s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                transform: scale(1); 
+                opacity: 0.1; 
+            }
+            50% { 
+                transform: scale(1.1); 
+                opacity: 0.2; 
+            }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { 
+                transform: scale(0); 
+            }
+            40% { 
+                transform: scale(1); 
+            }
+        }
+
+        .instructions {
+            background: #f0f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .instructions h3 {
+            color: #1e40af;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .instructions ul {
+            color: #1e40af;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1 class="demo-title">Chat Feature Demo</h1>
+        
+        <div class="status-indicator" id="chatStatus">
+            Chat Status: <span id="statusText">Enabled</span>
+        </div>
+
+        <button class="chat-button" id="chatButton" onclick="toggleChat()">
+            💬 Open Chat
+        </button>
+
+        <div class="control-buttons">
+            <button class="chat-button disable-btn" onclick="disableChatFeature()">
+                🚫 Disable Chat
+            </button>
+            <button class="chat-button enable-btn" onclick="enableChatFeature()">
+                ✅ Enable Chat
+            </button>
+        </div>
+
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ul>
+                <li>• Click "Disable Chat" to disable the feature</li>
+                <li>• Try clicking "Open Chat" when disabled</li>
+                <li>• Click "Enable Chat" to restore functionality</li>
+                <li>• The popup will auto-close after 4 seconds</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Chat Disable Popup -->
+    <div class="popup-overlay" id="chatDisablePopup">
+        <div class="popup-content">
+            <button class="popup-close" onclick="closeChatDisablePopup()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+
+            <div class="popup-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                </svg>
+            </div>
+
+            <h2 class="popup-title">Chat Disabled by Host</h2>
+            
+            <p class="popup-message">
+                The chat feature has been temporarily disabled. Please contact the meeting organizer if you need assistance.
+            </p>
+
+            <div class="popup-dots">
+                <div class="popup-dot"></div>
+                <div class="popup-dot"></div>
+                <div class="popup-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Chat state management
+        let chatEnabled = true;
+        let originalToggleChat = null;
+        let autoCloseTimer = null;
+
+        // Store the original chat function
+        function originalChatFunction() {
+            alert('Chat opened! (This would normally open your chat interface)');
+        }
+
+        // Initialize
+        originalToggleChat = originalChatFunction;
+
+        // Main toggle chat function
+        function toggleChat() {
+            if (chatEnabled) {
+                originalToggleChat();
+            } else {
+                showChatDisablePopup();
+            }
+        }
+
+        // Disable chat feature
+        function disableChatFeature() {
+            chatEnabled = false;
+            updateChatUI();
+            console.log('Chat feature disabled');
+        }
+
+        // Enable chat feature
+        function enableChatFeature() {
+            chatEnabled = true;
+            updateChatUI();
+            console.log('Chat feature enabled');
+        }
+
+        // Update UI based on chat state
+        function updateChatUI() {
+            const chatButton = document.getElementById('chatButton');
+            const statusElement = document.getElementById('chatStatus');
+            const statusText = document.getElementById('statusText');
+
+            if (chatEnabled) {
+                chatButton.disabled = false;
+                chatButton.style.opacity = '1';
+                chatButton.style.cursor = 'pointer';
+                chatButton.innerHTML = '💬 Open Chat';
+                statusElement.className = 'status-indicator status-enabled';
+                statusText.textContent = 'Enabled';
+            } else {
+                chatButton.disabled = true;
+                chatButton.style.opacity = '0.5';
+                chatButton.style.cursor = 'not-allowed';
+                chatButton.innerHTML = '🚫 Chat Disabled';
+                statusElement.className = 'status-indicator status-disabled';
+                statusText.textContent = 'Disabled';
+            }
+        }
+
+        // Show the beautiful popup
+        function showChatDisablePopup() {
+            const popup = document.getElementById('chatDisablePopup');
+            popup.classList.add('active');
+
+            // Clear any existing timer
+            if (autoCloseTimer) {
+                clearTimeout(autoCloseTimer);
+            }
+
+            // Auto close after 4 seconds
+            autoCloseTimer = setTimeout(() => {
+                closeChatDisablePopup();
+            }, 4000);
+        }
+
+        // Close the popup
+        function closeChatDisablePopup() {
+            const popup = document.getElementById('chatDisablePopup');
+            popup.classList.remove('active');
+            
+            if (autoCloseTimer) {
+                clearTimeout(autoCloseTimer);
+                autoCloseTimer = null;
+            }
+        }
+
+        // Close popup when clicking outside
+        document.getElementById('chatDisablePopup').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeChatDisablePopup();
+            }
+        });
+
+        // Close popup with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeChatDisablePopup();
+            }
+        });
+
+        // Initialize UI
+        updateChatUI();
+
+        // Global functions for external use
+        window.disableChatFeature = disableChatFeature;
+        window.enableChatFeature = enableChatFeature;
+        window.toggleChat = toggleChat;
+    </script>
+</body>
+</html>
