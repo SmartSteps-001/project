@@ -1,5 +1,5 @@
 import './style.css'
-import './advancedNoiseSuppression.js'
+
 import javascriptLogo from './javascript.svg'
 import viteLogo from '/vite.svg'
 import { setupCounter } from './counter.js'
