@@ -1,0 +1,208 @@
+/* Enhanced Screen Share Styles */
+.screen-share-label {
+  position: absolute !important;
+  top: 8px !important;
+  left: 8px !important;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+  color: white !important;
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  z-index: 20 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.screen-share-label i.fa-volume-up {
+  color: #10b981 !important;
+  animation: audioIndicator 1.5s infinite !important;
+}
+
+.screen-share-label i.fa-volume-mute {
+  color: #f59e0b !important;
+}
+
+@keyframes audioIndicator {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% { 
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+  50% { 
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 20px rgba(16, 185, 129, 0.5);
+  }
+}
+
+/* Screen share notification styles */
+.screen-share-notification {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.screen-share-notification.success {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+}
+
+.screen-share-notification.warning {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+}
+
+.screen-share-notification.error {
+  background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+}
+
+/* Enhanced screen share button states */
+.control-btn[data-active="true"] {
+  background: #dc2626 !important;
+  color: white !important;
+  box-shadow: 0 0 15px rgba(220, 38, 38, 0.4) !important;
+}
+
+.control-btn[data-active="true"]:hover {
+  background: #b91c1c !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Audio mixing indicator */
+.audio-mixing-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(16, 185, 129, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 15;
+  animation: pulse 2s infinite;
+}
+
+.audio-mixing-indicator i {
+  font-size: 8px;
+}
+
+/* System audio capture status */
+.system-audio-status {
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+}
+
+.system-audio-status.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.system-audio-status.success {
+  border-left: 4px solid #10b981;
+}
+
+.system-audio-status.warning {
+  border-left: 4px solid #f59e0b;
+}
+
+.system-audio-status.error {
+  border-left: 4px solid #dc2626;
+}
+
+/* Enhanced video wrapper for screen sharing */
+.video-wrapper.screen-sharing {
+  border: 3px solid #3b82f6 !important;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4) !important;
+}
+
+.video-wrapper.screen-sharing:hover {
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.6) !important;
+}
+
+/* Audio level visualization for screen share */
+.screen-share-audio-level {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  width: 60px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+  z-index: 15;
+}
+
+.screen-share-audio-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #3b82f6);
+  width: 0%;
+  transition: width 0.1s ease;
+  border-radius: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .screen-share-label {
+    font-size: 10px !important;
+    padding: 4px 6px !important;
+    gap: 4px !important;
+  }
+  
+  .screen-share-notification {
+    right: 10px !important;
+    left: 10px !important;
+    max-width: none !important;
+  }
+  
+  .system-audio-status {
+    right: 10px !important;
+    bottom: 80px !important;
+  }
+}
+
+/* Accessibility improvements */
+.screen-share-label[title] {
+  cursor: help;
+}
+
+.control-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .screen-share-label {
+    background: #000000 !important;
+    border: 2px solid #ffffff !important;
+  }
+  
+  .screen-share-notification {
+    border: 2px solid #ffffff !important;
+  }
+}
