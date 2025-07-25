@@ -48,12 +48,11 @@ class Meeting {
       
       // Additional STUN servers for better connectivity
       { urls: 'stun:stun.stunprotocol.org:3478' },
-      { urls: 'stun:stun.voiparound.com' },
-      { urls: 'stun:stun.voipbuster.com' },
-      { urls: 'stun:stun.voipstunt.com' },
-      { urls: 'stun:stun.voxgratia.org' },
+      { urls: 'stun:stun.nextcloud.com:443' },
+      { urls: 'stun:stun.sipgate.net:3478' },
+      { urls: 'stun:stun.ekiga.net' },
       
-      // OpenRelay TURN servers (free but limited)
+      // Multiple TURN server providers for better reliability
       {
         urls: 'turn:openrelay.metered.ca:80',
         username: 'openrelayproject',
@@ -68,6 +67,32 @@ class Meeting {
         urls: 'turn:openrelay.metered.ca:443?transport=tcp',
         username: 'openrelayproject',
         credential: 'openrelayproject'
+      },
+      // Add more reliable TURN servers
+      {
+        urls: 'turn:relay1.expressturn.com:3478',
+        username: 'ef3I7ZYQ1XQZAHK32F',
+        credential: 'lL2xX9qQCkH6QzRU'
+      },
+      {
+        urls: 'turn:a.relay.metered.ca:80',
+        username: 'a40c38b0e78216200d619b80',
+        credential: 'dvWS61aEZmhNcJaS'
+      },
+      {
+        urls: 'turn:a.relay.metered.ca:80?transport=tcp',
+        username: 'a40c38b0e78216200d619b80',
+        credential: 'dvWS61aEZmhNcJaS'
+      },
+      {
+        urls: 'turn:a.relay.metered.ca:443',
+        username: 'a40c38b0e78216200d619b80',
+        credential: 'dvWS61aEZmhNcJaS'
+      },
+      {
+        urls: 'turn:a.relay.metered.ca:443?transport=tcp',
+        username: 'a40c38b0e78216200d619b80',
+        credential: 'dvWS61aEZmhNcJaS'
       }
     ];
 
@@ -202,7 +227,8 @@ class Meeting {
   addScreenShare(socketId, streamId) {
     this.screenShares.set(socketId, {
       streamId,
-      startedAt: new Date()
+      startedAt: new Date(),
+      hasComputerAudio: false
     });
     
     const participant = this.participants.get(socketId);
@@ -211,11 +237,27 @@ class Meeting {
     }
   }
 
+  // Enhanced method to support computer audio
+  addScreenShare(socketId, streamId, hasComputerAudio = false) {
+    this.screenShares.set(socketId, {
+      streamId,
+      startedAt: new Date(),
+      hasComputerAudio
+    });
+    
+    const participant = this.participants.get(socketId);
+    if (participant) {
+      participant.isScreenSharing = true;
+      participant.isSharingComputerAudio = hasComputerAudio;
+    }
+  }
+
   removeScreenShare(socketId) {
     this.screenShares.delete(socketId);
     const participant = this.participants.get(socketId);
     if (participant) {
       participant.isScreenSharing = false;
+      participant.isSharingComputerAudio = false;
     }
   }
 
@@ -343,8 +385,10 @@ export const setupSocketIO = (server) => {
       methods: ["GET", "POST"]
     },
     transports: ['websocket', 'polling'],
-    pingTimeout: 60000,
-    pingInterval: 25000
+    pingTimeout: 120000,
+    pingInterval: 25000,
+    upgradeTimeout: 30000,
+    allowEIO3: true
   });
 
   // Meeting routes
@@ -404,10 +448,9 @@ export const setupSocketIO = (server) => {
         { urls: 'stun:stun3.l.google.com:19302' },
         { urls: 'stun:stun4.l.google.com:19302' },
         { urls: 'stun:stun.stunprotocol.org:3478' },
-        { urls: 'stun:stun.voiparound.com' },
-        { urls: 'stun:stun.voipbuster.com' },
-        { urls: 'stun:stun.voipstunt.com' },
-        { urls: 'stun:stun.voxgratia.org' },
+        { urls: 'stun:stun.nextcloud.com:443' },
+        { urls: 'stun:stun.sipgate.net:3478' },
+        { urls: 'stun:stun.ekiga.net' },
         {
           urls: 'turn:openrelay.metered.ca:80',
           username: 'openrelayproject',
@@ -422,6 +465,31 @@ export const setupSocketIO = (server) => {
           urls: 'turn:openrelay.metered.ca:443?transport=tcp',
           username: 'openrelayproject',
           credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:relay1.expressturn.com:3478',
+          username: 'ef3I7ZYQ1XQZAHK32F',
+          credential: 'lL2xX9qQCkH6QzRU'
+        },
+        {
+          urls: 'turn:a.relay.metered.ca:80',
+          username: 'a40c38b0e78216200d619b80',
+          credential: 'dvWS61aEZmhNcJaS'
+        },
+        {
+          urls: 'turn:a.relay.metered.ca:80?transport=tcp',
+          username: 'a40c38b0e78216200d619b80',
+          credential: 'dvWS61aEZmhNcJaS'
+        },
+        {
+          urls: 'turn:a.relay.metered.ca:443',
+          username: 'a40c38b0e78216200d619b80',
+          credential: 'dvWS61aEZmhNcJaS'
+        },
+        {
+          urls: 'turn:a.relay.metered.ca:443?transport=tcp',
+          username: 'a40c38b0e78216200d619b80',
+          credential: 'dvWS61aEZmhNcJaS'
         }
       ];
 
@@ -888,12 +956,14 @@ socket.on('rename-participant', (data) => {
       const meeting = meetings.get(participantInfo.meetingId);
       if (!meeting) return;
 
-      meeting.addScreenShare(socket.id, data.streamId);
+      // Enhanced screen share with computer audio support
+      meeting.addScreenShare(socket.id, data.streamId, data.hasComputerAudio || false);
       
       socket.to(participantInfo.meetingId).emit('screen-share-started', {
         participantId: socket.id,
         streamId: data.streamId,
-        participantName: meeting.participants.get(socket.id)?.name
+        participantName: meeting.participants.get(socket.id)?.name,
+        hasComputerAudio: data.hasComputerAudio || false
       });
 
       console.log(`Screen share started by ${socket.id} in meeting ${participantInfo.meetingId}`);
@@ -915,6 +985,55 @@ socket.on('rename-participant', (data) => {
       console.log(`Screen share stopped by ${socket.id} in meeting ${participantInfo.meetingId}`);
     });
 
+    // New event for computer audio during screen share
+    socket.on('toggle-computer-audio', (data) => {
+      const { enabled } = data;
+      const participantInfo = participants.get(socket.id);
+      if (!participantInfo) return;
+      
+      const meeting = meetings.get(participantInfo.meetingId);
+      if (!meeting) return;
+
+      const participant = meeting.participants.get(socket.id);
+      if (participant && participant.isScreenSharing) {
+        participant.isSharingComputerAudio = enabled;
+        
+        // Update screen share info
+        const screenShare = meeting.screenShares.get(socket.id);
+        if (screenShare) {
+          screenShare.hasComputerAudio = enabled;
+        }
+        
+        // Notify all participants about computer audio toggle
+        socket.to(participantInfo.meetingId).emit('computer-audio-toggled', {
+          participantId: socket.id,
+          enabled,
+          participantName: participant.name
+        });
+
+        console.log(`Computer audio ${enabled ? 'enabled' : 'disabled'} by ${socket.id} in meeting ${participantInfo.meetingId}`);
+      }
+    });
+
+    // New event for computer audio level during screen share
+    socket.on('computer-audio-level', (data) => {
+      const { level } = data;
+      const participantInfo = participants.get(socket.id);
+      if (!participantInfo) return;
+      
+      const meeting = meetings.get(participantInfo.meetingId);
+      if (!meeting) return;
+
+      const participant = meeting.participants.get(socket.id);
+      if (participant && participant.isScreenSharing && participant.isSharingComputerAudio) {
+        // Broadcast computer audio level to other participants
+        socket.to(participantInfo.meetingId).emit('computer-audio-level-update', {
+          participantId: socket.id,
+          level,
+          participantName: participant.name
+        });
+      }
+    });
     socket.on('spotlight-participant', (data) => {
       const { targetSocketId } = data;
       const participantInfo = participants.get(socket.id);
