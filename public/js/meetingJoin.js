@@ -9,6 +9,7 @@ class WebRTCManager {
           this.audioContext = null;
           this.isReady = false;
           this.originalMicrophoneTrack = null;
+          this.streamAttachRetries = new Map(); // Track retry attempts
           
           this.configuration = {
             iceServers: [
@@ -132,12 +133,21 @@ class WebRTCManager {
               });
             }
 
-            // Handle remote stream
+            // Handle remote stream - ENHANCED
             peerConnection.ontrack = (event) => {
               console.log('Received remote track from:', remoteSocketId);
               const [remoteStream] = event.streams;
               this.remoteStreams.set(remoteSocketId, remoteStream);
-              this.updateRemoteVideo(remoteSocketId, remoteStream);
+              
+              // Immediately try to update video and setup retry mechanism
+              this.updateRemoteVideoWithRetry(remoteSocketId, remoteStream);
+              
+              // Also trigger a participant re-render to ensure video elements exist
+              if (window.hostMeetingInstance) {
+                setTimeout(() => {
+                  window.hostMeetingInstance.refreshParticipantVideos();
+                }, 200);
+              }
             };
 
             // Handle ICE candidates
@@ -153,7 +163,13 @@ class WebRTCManager {
             // Handle connection state changes
             peerConnection.onconnectionstatechange = () => {
               console.log(`Connection state with ${remoteSocketId}:`, peerConnection.connectionState);
-              if (peerConnection.connectionState === 'failed') {
+              if (peerConnection.connectionState === 'connected') {
+                // When connection is established, ensure video is attached
+                const stream = this.remoteStreams.get(remoteSocketId);
+                if (stream) {
+                  this.updateRemoteVideoWithRetry(remoteSocketId, stream);
+                }
+              } else if (peerConnection.connectionState === 'failed') {
                 console.log(`Connection failed with ${remoteSocketId}, attempting restart`);
                 peerConnection.restartIce();
               }
@@ -195,12 +211,21 @@ class WebRTCManager {
                 });
               }
 
-              // Handle remote stream
+              // Handle remote stream - ENHANCED
               peerConnection.ontrack = (event) => {
                 console.log('Received remote track from:', sender);
                 const [remoteStream] = event.streams;
                 this.remoteStreams.set(sender, remoteStream);
-                this.updateRemoteVideo(sender, remoteStream);
+                
+                // Immediately try to update video and setup retry mechanism
+                this.updateRemoteVideoWithRetry(sender, remoteStream);
+                
+                // Also trigger a participant re-render to ensure video elements exist
+                if (window.hostMeetingInstance) {
+                  setTimeout(() => {
+                    window.hostMeetingInstance.refreshParticipantVideos();
+                  }, 200);
+                }
               };
 
               // Handle ICE candidates
@@ -216,7 +241,13 @@ class WebRTCManager {
               // Handle connection state changes
               peerConnection.onconnectionstatechange = () => {
                 console.log(`Connection state with ${sender}:`, peerConnection.connectionState);
-                if (peerConnection.connectionState === 'failed') {
+                if (peerConnection.connectionState === 'connected') {
+                  // When connection is established, ensure video is attached
+                  const stream = this.remoteStreams.get(sender);
+                  if (stream) {
+                    this.updateRemoteVideoWithRetry(sender, stream);
+                  }
+                } else if (peerConnection.connectionState === 'failed') {
                   console.log(`Connection failed with ${sender}, attempting restart`);
                   peerConnection.restartIce();
                 }
@@ -265,18 +296,74 @@ class WebRTCManager {
           }
         }
 
-        updateRemoteVideo(socketId, stream) {
-          // Wait a bit for the DOM to be ready
-          setTimeout(() => {
+        // ENHANCED: Updated method with retry mechanism
+        updateRemoteVideoWithRetry(socketId, stream, maxRetries = 5, currentRetry = 0) {
+          const attemptUpdate = () => {
             const videoWrapper = document.querySelector(`[data-socket-id="${socketId}"]`);
             if (videoWrapper) {
               const video = videoWrapper.querySelector('.video-frame');
-              if (video && video.srcObject !== stream) {
-                video.srcObject = stream;
-                video.play().catch(e => console.error('Error playing video:', e));
+              if (video) {
+                if (video.srcObject !== stream) {
+                  video.srcObject = stream;
+                  video.play().then(() => {
+                    console.log(`Successfully attached stream for ${socketId}`);
+                    // Clear retry tracking on success
+                    this.streamAttachRetries.delete(socketId);
+                  }).catch(e => {
+                    console.error('Error playing video:', e);
+                    this.retryStreamAttachment(socketId, stream, maxRetries, currentRetry + 1);
+                  });
+                } else {
+                  console.log(`Stream already attached for ${socketId}`);
+                  this.streamAttachRetries.delete(socketId);
+                }
+                return true;
               }
             }
-          }, 100);
+            return false;
+          };
+
+          const success = attemptUpdate();
+          if (!success) {
+            this.retryStreamAttachment(socketId, stream, maxRetries, currentRetry + 1);
+          }
+        }
+
+        retryStreamAttachment(socketId, stream, maxRetries, currentRetry) {
+          if (currentRetry >= maxRetries) {
+            console.warn(`Failed to attach stream for ${socketId} after ${maxRetries} attempts`);
+            return;
+          }
+
+          console.log(`Retrying stream attachment for ${socketId}, attempt ${currentRetry + 1}/${maxRetries}`);
+          
+          // Store retry info
+          this.streamAttachRetries.set(socketId, { 
+            stream, 
+            retryCount: currentRetry, 
+            maxRetries 
+          });
+
+          // Progressive delay: 100ms, 200ms, 500ms, 1000ms, 2000ms
+          const delays = [100, 200, 500, 1000, 2000];
+          const delay = delays[Math.min(currentRetry, delays.length - 1)];
+
+          setTimeout(() => {
+            this.updateRemoteVideoWithRetry(socketId, stream, maxRetries, currentRetry);
+          }, delay);
+        }
+
+        // LEGACY: Keep for backward compatibility but enhance
+        updateRemoteVideo(socketId, stream) {
+          this.updateRemoteVideoWithRetry(socketId, stream);
+        }
+
+        // NEW: Method to refresh all remote video attachments
+        refreshAllRemoteVideos() {
+          console.log('Refreshing all remote video attachments');
+          for (const [socketId, stream] of this.remoteStreams) {
+            this.updateRemoteVideoWithRetry(socketId, stream);
+          }
         }
 
         getRemoteStream(socketId) {
@@ -290,6 +377,7 @@ class WebRTCManager {
             this.peerConnections.delete(socketId);
           }
           this.remoteStreams.delete(socketId);
+          this.streamAttachRetries.delete(socketId); // Clear retry tracking
         }
 
         async toggleAudio(enabled) {
@@ -600,10 +688,72 @@ class WebRTCManager {
             setTimeout(() => {
               this.webrtc.setReady();
             }, 1000);
+            this.renderParticipants();
+            
+            // NEW: Start periodic video refresh to ensure streams are attached
+            this.startVideoRefreshMonitor();
           }
 
           // Initialize Reaction Manager
           this.reactionManager = new ReactionManager(this.socket);
+        }
+
+        // NEW: Monitor and refresh video attachments periodically
+        startVideoRefreshMonitor() {
+          // Check every 3 seconds for missing video attachments
+          setInterval(() => {
+            this.checkAndRefreshMissingVideos();
+          }, 3000);
+        }
+
+        // NEW: Check for video elements without streams and refresh them
+        checkAndRefreshMissingVideos() {
+          const videoWrappers = document.querySelectorAll('.video-wrapper[data-socket-id]');
+          let refreshNeeded = false;
+
+          videoWrappers.forEach(wrapper => {
+            const socketId = wrapper.dataset.socketId;
+            if (socketId !== this.socket.id) { // Skip local video
+              const video = wrapper.querySelector('.video-frame');
+              const remoteStream = this.webrtc.getRemoteStream(socketId);
+              
+              if (video && remoteStream && !video.srcObject) {
+                console.log(`Found missing video stream for ${socketId}, refreshing...`);
+                this.webrtc.updateRemoteVideoWithRetry(socketId, remoteStream);
+                refreshNeeded = true;
+              }
+            }
+          });
+
+          if (refreshNeeded) {
+            console.log('Refreshed missing video streams');
+          }
+        }
+
+        // NEW: Method to refresh participant videos (called by WebRTC manager)
+        refreshParticipantVideos() {
+          // Ensure all video elements exist and are properly attached
+          setTimeout(() => {
+            this.attachStreamsToExistingVideos();
+          }, 100);
+        }
+
+        // NEW: Attach streams to existing video elements
+        attachStreamsToExistingVideos() {
+          const videoWrappers = document.querySelectorAll('.video-wrapper[data-socket-id]');
+          
+          videoWrappers.forEach(wrapper => {
+            const socketId = wrapper.dataset.socketId;
+            const video = wrapper.querySelector('.video-frame');
+            
+            if (video && socketId !== this.socket.id) {
+              const remoteStream = this.webrtc.getRemoteStream(socketId);
+              if (remoteStream && video.srcObject !== remoteStream) {
+                video.srcObject = remoteStream;
+                video.play().catch(e => console.error('Error playing refreshed video:', e));
+              }
+            }
+          });
         }
 
         showLocalVideo() {
@@ -651,6 +801,11 @@ class WebRTCManager {
             console.log('Participant joined:', data);
             this.updateParticipants(data.participants);
             this.showToast(`${data.participant.name} joined the meeting`);
+            
+            // NEW: Ensure video elements are ready for new participant
+            setTimeout(() => {
+              this.refreshParticipantVideos();
+            }, 500);
           });
 
           this.socket.on('participant-left', (data) => {
@@ -754,9 +909,14 @@ class WebRTCManager {
             this.renderParticipantsList();
           });
 
-          // View toggle
+          // View toggle - ENHANCED to also refresh videos
           document.getElementById('viewToggle').addEventListener('click', () => {
             this.toggleView();
+            // Ensure all videos are properly attached after view change
+            setTimeout(() => {
+              this.refreshParticipantVideos();
+              this.webrtc.refreshAllRemoteVideos();
+            }, 200);
           });
 
           // Mic toggle
@@ -973,6 +1133,11 @@ class WebRTCManager {
           if (this.participantsPanelOpen) {
             this.renderParticipantsList();
           }
+
+          // NEW: Ensure videos are attached after participant updates
+          setTimeout(() => {
+            this.refreshParticipantVideos();
+          }, 200);
         }
 
         calculateGridPagination() {
@@ -1107,6 +1272,11 @@ class WebRTCManager {
               }
             });
           }
+
+          // NEW: Ensure all streams are attached after rendering
+          setTimeout(() => {
+            this.attachStreamsToExistingVideos();
+          }, 100);
         }
 
         createVideoWrapper(participant) {
@@ -1136,7 +1306,7 @@ class WebRTCManager {
 
           this.bindVideoWrapperEvents(wrapper, participant);
           
-          // Attach video stream
+          // ENHANCED: Attach video stream with better error handling
           setTimeout(() => {
             const video = wrapper.querySelector('.video-frame');
             if (participant.socketId === this.socket.id) {
@@ -1148,14 +1318,21 @@ class WebRTCManager {
               }
               video.play().catch(e => console.error('Error playing local video:', e));
             } else {
-              // Remote video
+              // Remote video - use enhanced method
               const remoteStream = this.webrtc.getRemoteStream(participant.socketId);
               if (remoteStream) {
                 video.srcObject = remoteStream;
-                video.play().catch(e => console.error('Error playing remote video:', e));
+                video.play().catch(e => {
+                  console.error('Error playing remote video:', e);
+                  // Retry with the enhanced method
+                  this.webrtc.updateRemoteVideoWithRetry(participant.socketId, remoteStream);
+                });
+              } else {
+                // Stream not available yet, it will be attached when received
+                console.log(`Remote stream not yet available for ${participant.socketId}`);
               }
             }
-          }, 100);
+          }, 50); // Reduced timeout for faster attachment
           
           return wrapper;
         }
@@ -1535,4 +1712,3 @@ class WebRTCManager {
           }
         }, 3000); // Wait 3 seconds for everything to load
       });
-      
